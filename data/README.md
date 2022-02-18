@@ -1,6 +1,6 @@
 ## Benchmark Testing
 
-**Benchmark project: bmw27**
+### Benchmark project: bmw27
 - Default settings
   - Rendering engine: cycles
   - Resolution: 1920x1080, 50%
@@ -16,3 +16,9 @@ blender -b bmw27_cpu.blend -o ./output/frame_#### -f 1
 ```
 - `-f 1`: Render the 1st frame.
 - `--cycles-print-stats`: Show detailed statistics about memory and time usage.
+
+
+### Related links
+- Scores of other devices: https://www.cgdirector.com/blender-benchmark-results-updated-scores/
+- Command line rendering: https://docs.blender.org/manual/en/latest/advanced/command_line/render.html
+
