@@ -1,14 +1,11 @@
 For now:
-- runs server and client on same device (PC)
-- only renders 1 frame (to render all frames, just uncomment the line in `server.py` that uses `blender_render_info`)
-- no way of sensing when new project comes into server
+- runs server and client on same device by default; can hardcode server IP in `client.py` to work on separate devices
+- no way of sensing when new project comes into server outside of monitoring server directory
 
 ## TODO:
 - hardcode server IP in `client.py`
-- send outputs from client back to server
-  - problem: how to sense client returning output if `server.accept()` is blocking in `while True` (Jessica: honestly unsure if it's blocking)
-- broadcast network to see what clients are available
-- have server sense when new projects come in?
+- have server sense when new projects come in
+- package client folder as apk
 
 ## To run:
 1. For now, need to add your `.blend` file in some project directory within the `server` directory. For instance:
@@ -20,14 +17,20 @@ For now:
     ```
 
 2. Start the server by doing
-  ```python3 src/server/server.py```
+  ```
+  cd src/server
+  python3 server.py
+  ```
 
 3. Start new client(s) in other terminal(s).
-  ```python3 src/client.client.py```
+  ```
+  cd src/client
+  python3 client.py
+  ```
 
 Your project's output should end up in
 ```
-├── client
+├── server
 │   ├── proj_name
 │   │   ├── output
 │   │   │   ├── 0001.jpg
