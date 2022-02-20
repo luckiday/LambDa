@@ -12,7 +12,7 @@
 
 To render the frames:
 ```bash
-blender -b bmw27_cpu.blend -o ./output/frame_#### -f 1 
+blender -b bmw27_cpu_282a.blend -o ./output/frame_#### -f 1 
 ```
 - `-f 1`: Render the 1st frame.
 - `--cycles-print-stats`: Show detailed statistics about memory and time usage.
