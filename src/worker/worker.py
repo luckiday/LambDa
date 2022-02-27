@@ -1,6 +1,7 @@
 import socket
 import subprocess
 import os
+import shutil
 
 IP = socket.gethostbyname(socket.gethostname()) # to be replaced with seerver IP
 PORT = 4455
@@ -70,6 +71,11 @@ def main():
     client.send("DONE".encode(FORMAT))
     client.close()
 
+    """ Delete project folder. """
+    try:
+      shutil.rmtree(proj_name)
+    except OSError as e:
+      print("Error: %s : %s" % (proj_name, e.strerror))
 
 if __name__ == "__main__":
   main()

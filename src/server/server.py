@@ -7,6 +7,7 @@ from threading import Thread
 import time
 import string
 import random
+import shutil
 
 # Multithreaded Python server : TCP Server Socket Thread Pool
 workers = []
@@ -248,6 +249,12 @@ class RequesterThread(Thread):
             self.conn.recv(SIZE) # ack
         self.conn.send("DONE".encode(FORMAT))
         self.conn.close()
+
+        """ Delete project folder. """
+        try:
+            shutil.rmtree(proj_name)
+        except OSError as e:
+            print("Error: %s : %s" % (proj_name, e.strerror))
 
         jobs_map_lock.acquire()
         del jobs_map[proj_name]
