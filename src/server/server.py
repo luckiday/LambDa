@@ -35,7 +35,7 @@ class ConnectionThread(Thread):
         Thread.__init__(self)
         self.tcpServer = tcpServer
 
-        print("Starting server thread.")
+        print("[CONN] Starting server thread.")
 
     def run(self):
         MonitorThread().start()
@@ -46,21 +46,21 @@ class ConnectionThread(Thread):
             if role == "worker":
                 newthread = WorkerThread(conn, ip, port)
                 newthread.start()
-                print(f"[NEW WORKER] {ip} on port {port} connected.")
-                print("CONNECT: worker_lock get")
+                print(f"[CONN] New worker {ip} on port {port} connected.")
+                print("[CONN] worker_lock get")
                 worker_lock.acquire()
                 workers.append(newthread)
                 worker_lock.release()
-                print("CONNECT: worker_lock release")
+                print("[CONN] worker_lock release")
             else:
                 newthread = RequesterThread(conn, ip, port)
                 newthread.start()
-                print(f"[NEW REQUESTER] {ip} on port {port} connected.")
+                print(f"[CONN] New requester {ip} on port {port} connected.")
 
 class MonitorThread(Thread):
     def __init__(self):
         Thread.__init__(self)
-        print("Starting monitoring thread.")
+        print("[MON] Starting monitoring thread.")
 
     def run(self):
         """ Check if a new project has arrived. """
@@ -73,15 +73,15 @@ class MonitorThread(Thread):
 
             if len(new_projs_set) and len(workers):
                 for new_proj in new_projs_set:
-                    print("New proj: " + new_proj)
+                    print("[MON] New proj: " + new_proj)
                     # should have just one .blend file in here
                     for filename in os.listdir(new_proj):
                         if filename.endswith(".blend"):
-                            print("MONITOR: worker_lock get")
+                            print("[MON] worker_lock get")
                             worker_lock.acquire()
                             workers_tmp = workers
                             worker_lock.release()
-                            print("MONITOR: worker_lock release")
+                            print("[MON] worker_lock release")
                             filepath = new_proj + "/" + filename
                             file_len = str(os.path.getsize(filepath))
                             if file_len == "0":
@@ -134,24 +134,24 @@ class WorkerThread(Thread):
         self.port = port
         self.conn = conn
         self.waiting = True
-        print("[+] New worker socket thread started for " + ip + ":" + str(port))
+        print("[WORK] New worker socket thread started for " + ip + ":" + str(port))
 
     def run(self):
         self.conn.send("role".encode(FORMAT)) # ack
-        print('Waiting for client status')
+        print("[WORK] Waiting for client status")
         intent = self.conn.recv(SIZE).decode(FORMAT)
         if intent == "available":
-            print("Client's available")
+            print("[WORK] Client's available")
             while self.waiting:
                 time.sleep(5)
-            print("Starting job: " + self.filepath)
+            print("[WORK] Starting job: " + self.filepath)
             self.conn.send((self.filepath + "\n" + self.file_len + "\n" + str(self.start_frame) + "\n" + str(self.end_frame)).encode(FORMAT))
             self.conn.recv(SIZE)  # confirm client received metadata
             self.conn.send(self.data)  # send whole file
             self.conn.recv(SIZE)  # confirm client received .blend file
-            print("Sent File Data")
+            print("[WORK] Sent File Data")
         else: # done
-            print("Client's done")
+            print("[WORK] Client's done")
             proj_name = ""
             while True:
                 metadata = self.conn.recv(SIZE).decode(FORMAT).split("\n")
@@ -174,7 +174,7 @@ class WorkerThread(Thread):
                         raise EOFError
                     pos += cr
                 file.write(data)
-                print("RECEIVED OUTPUT " + metadata[0])
+                print("[WORK] RECEIVED OUTPUT " + metadata[0])
                 self.conn.send("file received".encode(FORMAT))
 
             """ Check whether this project's done rendering. """
@@ -191,7 +191,7 @@ class RequesterThread(Thread):
         self.port = port
         self.conn = conn
         self.waiting = True
-        print("[+] New requester socket thread started for " + ip + ":" + str(port))
+        print("[REQ] New requester socket thread started for " + ip + ":" + str(port))
 
     def run(self):
         self.conn.send("role".encode(FORMAT)) # ack
@@ -201,7 +201,7 @@ class RequesterThread(Thread):
         self.conn.send("ack".encode(FORMAT))
 
         """ Get .blend file and save to project folder. """
-        print("[RECV] Receiving .blend file.")
+        print("[REQ] Receiving .blend file.")
         blend_file_len = int(metadata[1])
         data = bytearray(blend_file_len)
         pos = 0
@@ -210,7 +210,7 @@ class RequesterThread(Thread):
             if cr == 0:
                 raise EOFError
             pos += cr
-        print("Received .blend file.")
+        print("[REQ] Received .blend file.")
         self.conn.send("file received".encode(FORMAT))
 
         """ Save to project folder. """
