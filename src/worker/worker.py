@@ -14,6 +14,8 @@ def main():
     """ Connecting to the server. """
     print("CONNECTED WITH SERVER")
     client.connect(ADDR)
+    client.send("worker".encode(FORMAT))
+    client.recv(SIZE) # role ack
     client.send("available".encode(FORMAT))
 
     """ Receive filepath, .blend file length, and frame number to render. """
@@ -53,6 +55,8 @@ def main():
     """ Connecting to the server. """
     print("CONNECTED WITH SERVER")
     client.connect(ADDR)
+    client.send("worker".encode(FORMAT))
+    client.recv(SIZE) # role ack
     client.send("done".encode(FORMAT))
     for filename in os.listdir(proj_name + "/outputs"):
       filepath = proj_name + "/outputs/" + filename
@@ -62,6 +66,7 @@ def main():
       client.send((filepath + "\n" + file_len).encode(FORMAT))
       client.recv(SIZE) # ack
       client.send(data)
+      client.recv(SIZE) #ack
     client.send("DONE".encode(FORMAT))
     client.close()
 
