@@ -1,20 +1,36 @@
+import argparse
 import socket
 import subprocess
 import os
 import shutil
 
-IP = socket.gethostbyname(socket.gethostname()) # to be replaced with seerver IP
+parser = argparse.ArgumentParser(description="Join this device into the LambDa render farm running on a specified server.")
+parser.add_argument("--serv-addr", help="IP address of server to connect to")
+args = parser.parse_args()
+
+IP = socket.gethostbyname(socket.gethostname()) # to be replaced with server IP
+if (args.serv_addr):
+  try:
+    socket.inet_aton(args.serv_addr)
+    IP = args.serv_addr
+  except:
+    print("The argument could not be parsed as an IP address.")
+    quit()
 PORT = 4455
 ADDR = (IP, PORT)
 FORMAT = "utf-8"
 SIZE = 1024
 def main():
   while True:
-    """ Staring a TCP socket. """
+    """ Starting a TCP socket. """
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     """ Connecting to the server. """
+    try:
+      client.connect(ADDR)
+    except:
+      print("Connection failed. Check that the server IP address was correct.")
+      quit()
     print("CONNECTED WITH SERVER")
-    client.connect(ADDR)
     client.send("worker".encode(FORMAT))
     client.recv(SIZE) # role ack
     client.send("available".encode(FORMAT))

@@ -40,6 +40,7 @@ class ConnectionThread(Thread):
 
     def run(self):
         MonitorThread().start()
+        print(f"Server running at {IP}:{PORT}")
         while True:
             self.tcpServer.listen()
             (conn, (ip, port)) = self.tcpServer.accept()
@@ -80,7 +81,14 @@ class MonitorThread(Thread):
                         if filename.endswith(".blend"):
                             print("[MON] worker_lock get")
                             worker_lock.acquire()
+                            """ Reserve workers for this job. """
+                            while (len(workers) == 0):
+                                print("No workers available, waiting...")
+                                worker_lock.release()
+                                time.sleep(5)
+                                worker_lock.acquire()
                             workers_tmp = workers
+                            workers = []
                             worker_lock.release()
                             print("[MON] worker_lock release")
                             filepath = new_proj + "/" + filename
@@ -96,16 +104,11 @@ class MonitorThread(Thread):
                             file = open(filepath, "rb")
                             data = file.read()
 
-                            """ Reserve workers for this job. """
-                            worker_lock.acquire()
-                            workers = []
-                            worker_lock.release()
-
                             """ Naively spread frames amongst available clients. 1 client can't handle more than 1 job. """
-                            # res = blender_render_info.read_blend_rend_chunk(filepath)
-                            # print(res)
-                            # [(frame_start, frame_end, _)] = res
-                            frame_start, frame_end = 23, 24
+                            res = blender_render_info.read_blend_rend_chunk(filepath)
+                            print(res)
+                            [(frame_start, frame_end, _)] = res
+                            # frame_start, frame_end = 23, 24
                             num_available_clients = len(workers_tmp)
                             frames_per_client = (frame_end - frame_start + 1) // num_available_clients
                             # last client will get any leftovers
@@ -179,8 +182,8 @@ class WorkerThread(Thread):
                 self.conn.send("file received".encode(FORMAT))
 
             """ Check whether this project's done rendering. """
-            # if len(os.listdir(proj_name + "/outputs")) == jobs_map[proj_name][1]:
-            if len(os.listdir(proj_name + "/outputs")) == 2:
+            if len(os.listdir(proj_name + "/outputs")) == jobs_map[proj_name][1]:
+            # if len(os.listdir(proj_name + "/outputs")) == 2:
                 """ Done with this project so notify requester. """
                 jobs_map[proj_name][0].waiting = False
         self.conn.close()
