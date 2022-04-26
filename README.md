@@ -64,6 +64,7 @@
       <a href="#getting-started">Getting Started</a>
       <ul>
         <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#compatibility">Compatibility</a></li>
         <li><a href="#installation">Installation</a></li>
       </ul>
     </li>
@@ -110,6 +111,23 @@ To run the LambDa worker in a mobile environment, you will need to install a Lin
 Follow the instructions in Andronix to install **Arch Linux** on your device. We have also tested LambDa on Ubuntu, however, recent versions of Blender (3+) are not available from the Ubuntu package manager.
 
 If you want to interact with the Linux GUI on the mobile device, you will also need to install [VNC Viewer](https://play.google.com/store/apps/details?id=com.realvnc.viewer.android&hl=en_US&gl=US). After you have set up the Linux distribution using Andronix and Termux, go to Termux and enter the command `vncserver-start`. You will need to provide a PIN number the first time you run this command. Then open VNC Viewer and connect to `localhost:1`. Enter the PIN you set. You should now have access to the Linux GUI. Once you have installed Blender, you should also be able to start the Blender GUI through VNC Viewer.
+
+
+### Compatibility
+
+LambDa has been tested with the following configurations, but we expect it to work with any device running Python 3 and Blender 2.82+.
+
+**Server/Requester:**
+* Windows and macOS
+* Python 3
+
+**Workers:**
+* Ubuntu 20.04 (Andronix), Arch Linux ARM (Andronix)
+* Blender 2.82, 3.1.2
+* Python 3
+
+Any version of Blender since 2.82 (and possibly earlier) will work, but note that the system can only render a model if the oldest Blender version on any worker is at least as new as the Blender version that generated the Blend file.
+
 
 ### Installation
 
