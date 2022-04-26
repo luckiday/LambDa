@@ -154,14 +154,14 @@ cd src/server
 python3 server.py
 ```
 
-The server starts on port 4455. If necessary, the port number the server uses can be changed by modifying the line in `server.py` that starts with `PORT =`.
+The server starts on port 4455. If necessary, the port number the server uses can be changed by modifying the line in `server.py` that starts with `PORT =`. You may need to modify your device's firewall settings to allow connections on this port.
 
 
 The server can be terminated at any time with Ctrl-C, however, this will not stop any worker or requester processes on any device. Resuming a job after the server restarts is not  supported.
 
 ### Worker
 
-The worker needs to know the IP address of the server to connect to. By default, the worker will use the IP address of the machine it is running on. To use a different address, enter the address after the option `--serv-addr` on the command line when starting `worker.py`. The server's IP address will be displayed on the server's console after starting it.
+The worker needs to know the IP address of the server to connect to. Enter the address after the option `--serv-addr` on the command line when starting `worker.py`. If none is provided, the worker will use the IP address of the machine it is running on. The server's IP address will be displayed on the server's console after starting it.
 
 If the server's port number was changed from the default, the port number must also be changed in worker.py in the line that starts with `PORT =`.
 

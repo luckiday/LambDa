@@ -48,6 +48,10 @@ def main():
   print("Waiting for outputs")
   while True:
     metadata = requester.recv(SIZE).decode(FORMAT).split("\n")
+    if (metadata[0] == "CANCEL"):
+      requester.close()
+      print("Request canceled by server.")
+      quit()
     if len(metadata) == 1:
         break
     requester.send("ack".encode(FORMAT))

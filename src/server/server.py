@@ -66,10 +66,13 @@ class MonitorThread(Thread):
 
     def run(self):
         """ Check if a new project has arrived. """
-        root = './'
         projs_set = set()
         while True:
-            curr_projs_set = set([item for item in os.listdir(root) if item != '__pycache__' and os.path.isdir(os.path.join(root, item))])
+            curr_projs_set = set([item for item in os.listdir(PROJECTS_DIR)
+                if (
+                    item != '__pycache__'
+                    and os.path.isdir(os.path.join(PROJECTS_DIR, item))
+                    and not item.startswith("CHECKING_"))])
             new_projs_set = curr_projs_set.difference(projs_set)
             global workers
 
@@ -77,11 +80,33 @@ class MonitorThread(Thread):
                 for new_proj in new_projs_set:
                     print("[MON] New proj: " + new_proj)
                     # should have just one .blend file in here
-                    for filename in os.listdir(new_proj):
+                    for filename in os.listdir(PROJECTS_DIR + "/" + new_proj):
                         if filename.endswith(".blend"):
+                            filepath = new_proj + "/" + filename
+                            file_len = str(os.path.getsize(PROJECTS_DIR + "/" + filepath))
+                            if file_len == "0":
+                                """
+                                haven't finished writing to the file yet
+                                try again next iteration
+                                """
+                                break
+
+                            """ Opening and reading the .blend file data. """
+                            file = open(PROJECTS_DIR + "/" + filepath, "rb")
+                            data = file.read()
+
+                            """ Naively spread frames amongst available clients. 1 client can't handle more than 1 job. """
+                            res = blender_render_info.read_blend_rend_chunk(PROJECTS_DIR + "/" + filepath)
+                            print("[MON] blender_render_info result: " + str(res))
+                            if (res == []):
+                                print(f"[MON] blender_render_info failed for {filepath}, skipping it.")
+                                break
+                            [(frame_start, frame_end, _)] = res
+                            # frame_start, frame_end = 23, 24
+
+                            """ Reserve workers for this job. """
                             print("[MON] worker_lock get")
                             worker_lock.acquire()
-                            """ Reserve workers for this job. """
                             while (len(workers) == 0):
                                 print("No workers available, waiting...")
                                 worker_lock.release()
@@ -91,24 +116,7 @@ class MonitorThread(Thread):
                             workers = []
                             worker_lock.release()
                             print("[MON] worker_lock release")
-                            filepath = new_proj + "/" + filename
-                            file_len = str(os.path.getsize(filepath))
-                            if file_len == "0":
-                                """
-                                haven't finished writing to the file yet
-                                try again next iteration
-                                """
-                                break
 
-                            """ Opening and reading the .blend file data. """
-                            file = open(filepath, "rb")
-                            data = file.read()
-
-                            """ Naively spread frames amongst available clients. 1 client can't handle more than 1 job. """
-                            res = blender_render_info.read_blend_rend_chunk(filepath)
-                            print(res)
-                            [(frame_start, frame_end, _)] = res
-                            # frame_start, frame_end = 23, 24
                             num_available_clients = len(workers_tmp)
                             frames_per_client = (frame_end - frame_start + 1) // num_available_clients
                             # last client will get any leftovers
@@ -165,10 +173,10 @@ class WorkerThread(Thread):
 
                 proj_name = metadata[0].split("/")[0]
                 try:
-                    file = open(metadata[0], "wb")
+                    file = open(PROJECTS_DIR + "/" + metadata[0], "wb")
                 except FileNotFoundError:
-                    os.makedirs("./" + proj_name + "/outputs")
-                    file = open(metadata[0], "wb")
+                    os.makedirs(PROJECTS_DIR + "/" + proj_name + "/outputs")
+                    file = open(PROJECTS_DIR + "/" + metadata[0], "wb")
                 output_file_len = int(metadata[1])
                 data = bytearray(output_file_len)
                 pos = 0
@@ -182,8 +190,10 @@ class WorkerThread(Thread):
                 self.conn.send("file received".encode(FORMAT))
 
             """ Check whether this project's done rendering. """
-            if len(os.listdir(proj_name + "/outputs")) == jobs_map[proj_name][1]:
-            # if len(os.listdir(proj_name + "/outputs")) == 2:
+            if (proj_name != "" and
+                len(os.listdir(PROJECTS_DIR + "/" + proj_name + "/outputs"))
+                    == jobs_map[proj_name][1]):
+            # if len(os.listdir(PROJECTS_DIR + "/" + proj_name + "/outputs")) == 2:
                 """ Done with this project so notify requester. """
                 jobs_map[proj_name][0].waiting = False
         self.conn.close()
@@ -220,18 +230,35 @@ class RequesterThread(Thread):
         """ Save to project folder. """
         char_pool = string.ascii_letters + string.digits
         proj_name = ''.join(random.choice(char_pool) for i in range(10)) # create random 10-char proj name
-        while proj_name in os.listdir("./"):
+        while proj_name in os.listdir(PROJECTS_DIR):
             proj_name = ''.join(random.choice(char_pool) for i in range(10)) # create random 10-char proj name
 
-        os.makedirs("./" + proj_name)
-        file = open(proj_name + "/" + metadata[0], "wb")
-        file.write(data)
+        """ Name project directory starting with CHECKING_ so it's ignored until Blend file check is done. """
+        os.makedirs(PROJECTS_DIR + "/CHECKING_" + proj_name)
+        file_name = proj_name + "/" + metadata[0]
+        with open(PROJECTS_DIR + "/CHECKING_" + file_name, "wb") as file:
+            file.write(data)
 
         """
         Figure out how many frames this project needs to render.
         Keep track of this so know when workers are done rendering.
         """
-        [(frame_start, frame_end, _)] = blender_render_info.read_blend_rend_chunk(proj_name + "/" + metadata[0])
+        res = blender_render_info.read_blend_rend_chunk(PROJECTS_DIR + "/CHECKING_" + file_name)
+        """ If .blend file can't be parsed, cancel the job and let the requester know. """
+        if (res == []):
+            print(f"[REQ] blender_render_info failed for {file_name}. Cancelling request.")
+            try:
+                shutil.rmtree(PROJECTS_DIR + "/CHECKING_" + proj_name)
+            except OSError as e:
+                print("Error: %s : %s" % (proj_name, e.strerror))
+            self.conn.send("CANCEL".encode(FORMAT))
+            self.conn.close()
+            return
+
+        """ Rename project directory to remove 'CHECKING_' now that check has passed. """
+        os.replace(PROJECTS_DIR + "/CHECKING_" + proj_name, PROJECTS_DIR + "/" + proj_name)
+
+        [(frame_start, frame_end, _)] = res
         jobs_map_lock.acquire()
         jobs_map[proj_name] = [self, frame_end - frame_start + 1]
         jobs_map_lock.release()
@@ -241,11 +268,11 @@ class RequesterThread(Thread):
             time.sleep(5)
 
         """ Send outputs to requester. """
-        for filename in os.listdir(proj_name + "/outputs"):
+        for filename in os.listdir(PROJECTS_DIR + "/" + proj_name + "/outputs"):
             filepath = proj_name + "/outputs/" + filename
-            file = open(filepath, "rb")
+            file = open(PROJECTS_DIR + "/" + filepath, "rb")
             data = file.read()
-            file_len = str(os.path.getsize(filepath))
+            file_len = str(os.path.getsize(PROJECTS_DIR + "/" + filepath))
             self.conn.send((filepath + "\n" + file_len).encode(FORMAT))
             self.conn.recv(SIZE) # ack
             self.conn.send(data)
@@ -255,7 +282,7 @@ class RequesterThread(Thread):
 
         """ Delete project folder. """
         try:
-            shutil.rmtree(proj_name)
+            shutil.rmtree(PROJECTS_DIR + "/" + proj_name)
         except OSError as e:
             print("Error: %s : %s" % (proj_name, e.strerror))
 
@@ -272,6 +299,12 @@ FORMAT = "utf-8"
 tcpServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 tcpServer.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 tcpServer.bind((IP, PORT))
+
+""" Initialize empty projects directory. """
+PROJECTS_DIR = './.lambda_projects_queue'
+if (".lambda_projects_queue" in os.listdir('./') and os.path.isdir(PROJECTS_DIR)):
+    shutil.rmtree(PROJECTS_DIR)
+os.makedirs(PROJECTS_DIR)
 
 print("Multithreaded Python server : Waiting for connections from TCP clients...")
 ConnectionThread(tcpServer).start()
