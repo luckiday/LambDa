@@ -47,7 +47,7 @@ def read_blend_rend_chunk(path):
         head = blendfile.read(7)
 
     if head != b'BLENDER':
-        print("not a blend file:", path)
+        print("[blender_render_info] not a blend file:", path)
         blendfile.close()
         return []
 

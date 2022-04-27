@@ -2,21 +2,33 @@ import socket
 import os
 import argparse
 
-IP = socket.gethostbyname(socket.gethostname()) # to be replaced with seerver IP
+parser = argparse.ArgumentParser(description="Submit job request to server via TCP. Run until job finished. Outputs saved to your current directory.")
+parser.add_argument("path", help="path to .blend file")
+parser.add_argument("--serv-addr", help="IP address of server to connect to")
+args = parser.parse_args()
+
+IP = socket.gethostbyname(socket.gethostname()) # to be replaced with server IP
+if (args.serv_addr):
+  try:
+    socket.inet_aton(args.serv_addr)
+    IP = args.serv_addr
+  except:
+    print("The argument could not be parsed as an IP address.")
+    quit()
 PORT = 4455
 ADDR = (IP, PORT)
 FORMAT = "utf-8"
 SIZE = 1024
 def main():
-  parser = argparse.ArgumentParser(description="Submit job request to server via TCP. Run until job finished. Outputs saved to your current directory.")
-  parser.add_argument("path", help="path to .blend file")
-  args = parser.parse_args()
-
-  """ Staring a TCP socket. """
+  """ Starting a TCP socket. """
   requester = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   """ Connecting to the server. """
+  try:
+    requester.connect(ADDR)
+  except:
+    print("Connection failed. Check that the server IP address was correct.")
+    quit()
   print("REQUESTER CONNECTED WITH SERVER")
-  requester.connect(ADDR)
   requester.send("requester".encode(FORMAT))
   requester.recv(SIZE) # role ack
 
@@ -36,6 +48,10 @@ def main():
   print("Waiting for outputs")
   while True:
     metadata = requester.recv(SIZE).decode(FORMAT).split("\n")
+    if (metadata[0] == "CANCEL"):
+      requester.close()
+      print("Request canceled by server.")
+      quit()
     if len(metadata) == 1:
         break
     requester.send("ack".encode(FORMAT))
