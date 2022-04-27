@@ -1,3 +1,4 @@
 outputs
 *.blend
 __pycache__
+/.idea/
