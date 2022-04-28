@@ -258,7 +258,7 @@ On the requester device, your project's output will end up in
 
 - [x] Render farm with Blender 2.8
 - [x] Render farm for Blender 3.x
-- [ ] Updated [Installation Guide](doc/instruction.md) for Blender 3.x
+- [x] Updated [Installation Guide](doc/instruction.md) for Blender 3.x
 
 <!-- See the [open issues](https://github.com/luckiday/LambDa/issues) for a full list of proposed features (and known issues).
 
