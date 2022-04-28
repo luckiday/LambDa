@@ -129,9 +129,9 @@ install [VNC Viewer](https://play.google.com/store/apps/details?id=com.realvnc.v
 have set up the Linux distribution using Andronix and Termux, go to Termux and enter the command `vncserver-start`. You
 will need to provide a PIN number the first time you run this command. Then open VNC Viewer and connect to `localhost:1`
 . Enter the PIN you set. You should now have access to the Linux GUI.
+
 To install Blender, run
 `sudo pacman -S blender`.
-
 Once you have installed Blender, you should also
 be able to start the Blender GUI through VNC Viewer.
 
