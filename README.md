@@ -217,8 +217,13 @@ running on. The server's IP address will be displayed on the server's console af
 If the server's port number was changed from the default, the port number must also be changed in worker.py in the line
 that starts with `PORT =`.
 
-After the server has been started, start each worker by running
+After the server has been started, start each worker. If using Andronix, first
+run this command to start the display (it may already be running):
+```
+vncserver-start
+```
 
+Then start the worker:
 ```
 cd src/worker
 python3 worker.py --serv-addr [SERVER_IP_ADDRESS]
@@ -233,12 +238,21 @@ To request a project to be rendered, locate the .blend file, then run
 
 ```
 cd src/requester
-python3 requester.py <PATH_TO_BLEND_FILE.blend> --serv-addr [SERVER_IP_ADDRESS]
+python3 requester.py <PATH_TO_BLEND_FILE.blend> --serv-addr [SERVER_IP_ADDRESS] --rend-engine [RENDER_ENGINE]
 ```
 
 The IP address of the server to connect to is configured the same way as in the worker.
 
-Note that the workers must have joined the render farm before the requester can start.
+The `rend-engine` option can be used to specify which render engine Blender
+should use. The options are:
+
+* `CYCLES`: The path-tracing render engine. Usually produces the best quality
+render, but takes the longest time.
+[(Cycles)](https://docs.blender.org/manual/en/latest/render/cycles/introduction.html)
+* `BLENDER_EEVEE`: Blender's realtime render engine.
+[(Eevee)](https://docs.blender.org/manual/en/latest/render/eevee/introduction.html)
+* `BLENDER_WORKBENCH`: An engine for quickly rendering previews of animations.
+[(Workbench)](https://docs.blender.org/manual/en/latest/render/workbench/introduction.html)
 
 On the requester device, your project's output will end up in
 

@@ -35,7 +35,7 @@ def main():
     client.recv(SIZE) # role ack
     client.send("available".encode(FORMAT))
 
-    """ Receive filepath, .blend file length, and frame number to render. """
+    """ Receive filepath, .blend file length, frame numbers to render, and render engine to use. """
     metadata = client.recv(SIZE).decode(FORMAT)
     client.send("metadata received".encode(FORMAT))
     metadata = metadata.split("\n")
@@ -63,15 +63,23 @@ def main():
     """ Closing the file. """
     file.close()
 
+    """ Check render engine choice. """
+    if (metadata[4] not in ["CYCLES", "BLENDER_EEVEE", "BLENDER_WORKBENCH"]):
+      print(f"Invalid render engine: {metadata[4]}, using CYCLES instead.")
+      rend_engine = "CYCLES"
+    else:
+      rend_engine = metadata[4]
+
     """ Render assigned frames~ """
-    subprocess.run(["blender", "-b", metadata[0], '-o', proj_name + "/outputs/", "-E", "CYCLES", "-s", metadata[2], "-e", metadata[3], "-a"])
+    print(' '.join(["blender", "-b", metadata[0], '-o', "//outputs/", "-E", rend_engine, "-s", metadata[2], "-e", metadata[3], "-a"]))
+    subprocess.run(["blender", "-b", metadata[0], '-o', "//outputs/", "-E", rend_engine, "-s", metadata[2], "-e", metadata[3], "-a"])
 
     # """ Send outputs to server. """
     """ Staring a TCP socket. """
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     """ Connecting to the server. """
-    print("CONNECTED WITH SERVER")
     client.connect(ADDR)
+    print("CONNECTED WITH SERVER")
     client.send("worker".encode(FORMAT))
     client.recv(SIZE) # role ack
     client.send("done".encode(FORMAT))

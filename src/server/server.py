@@ -11,7 +11,7 @@ import shutil
 
 # Multithreaded Python server : TCP Server Socket Thread Pool
 workers = []
-jobs_map = {} # map project names to [RequesterThread, num frames to render]
+jobs_map = {} # map project names to [RequesterThread, num frames to render, rendering engine]
 worker_lock = threading.Lock()
 jobs_map_lock = threading.Lock()
 
@@ -135,6 +135,7 @@ class MonitorThread(Thread):
                                 client.end_frame = end_frame
                                 client.data = data
                                 client.waiting = False
+                                client.proj_name = new_proj
                             file.close()
                             projs_set.add(new_proj)
                             break
@@ -157,7 +158,13 @@ class WorkerThread(Thread):
             while self.waiting:
                 time.sleep(5)
             print("[WORK] Starting job: " + self.filepath)
-            self.conn.send((self.filepath + "\n" + self.file_len + "\n" + str(self.start_frame) + "\n" + str(self.end_frame)).encode(FORMAT))
+            self.conn.send((
+                self.filepath
+                + "\n" + self.file_len
+                + "\n" + str(self.start_frame)
+                + "\n" + str(self.end_frame)
+                + "\n" + str(jobs_map[self.proj_name][2]) # Look up rend engine
+                ).encode(FORMAT))
             self.conn.recv(SIZE)  # confirm client received metadata
             self.conn.send(self.data)  # send whole file
             self.conn.recv(SIZE)  # confirm client received .blend file
@@ -212,7 +219,14 @@ class RequesterThread(Thread):
 
         """ Get project metadata. """
         metadata = self.conn.recv(SIZE).decode(FORMAT).split("\n")
+        """ Check received metadata """
+        if (len(metadata) != 3):
+            self.conn.send("CANCEL".encode(FORMAT))
+            self.conn.close()
+            return
         self.conn.send("ack".encode(FORMAT))
+
+        rend_engine = metadata[2]
 
         """ Get .blend file and save to project folder. """
         print("[REQ] Receiving .blend file.")
@@ -260,7 +274,7 @@ class RequesterThread(Thread):
 
         [(frame_start, frame_end, _)] = res
         jobs_map_lock.acquire()
-        jobs_map[proj_name] = [self, frame_end - frame_start + 1]
+        jobs_map[proj_name] = [self, frame_end - frame_start + 1, rend_engine]
         jobs_map_lock.release()
 
         """ Wait for workers to finish renders. """
