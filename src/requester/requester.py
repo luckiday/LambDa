@@ -5,6 +5,10 @@ import argparse
 parser = argparse.ArgumentParser(description="Submit job request to server via TCP. Run until job finished. Outputs saved to your current directory.")
 parser.add_argument("path", help="path to .blend file")
 parser.add_argument("--serv-addr", help="IP address of server to connect to")
+parser.add_argument(
+  "--rend-engine",
+  help="the Blender rendering engine to use: CYCLES, BLENDER_EEVEE, or BLENDER_WORKBENCH. Default: CYCLES",
+  default="CYCLES")
 args = parser.parse_args()
 
 IP = socket.gethostbyname(socket.gethostname()) # to be replaced with server IP
@@ -15,6 +19,11 @@ if (args.serv_addr):
   except:
     print("The argument could not be parsed as an IP address.")
     quit()
+if (args.rend_engine):
+  if (args.rend_engine not in ["CYCLES", "BLENDER_EEVEE", "BLENDER_WORKBENCH"]):
+    print("Invalid argument: rend_engine must be CYCLES, BLENDER_EEVEE, or BLENDER_WORKBENCH")
+    quit()
+  ENGINE = args.rend_engine
 PORT = 4455
 ADDR = (IP, PORT)
 FORMAT = "utf-8"
@@ -26,18 +35,22 @@ def main():
   try:
     requester.connect(ADDR)
   except:
-    print("Connection failed. Check that the server IP address was correct.")
+    print("Connection failed. Check that the server IP address was correct and the server is running.")
     quit()
   print("REQUESTER CONNECTED WITH SERVER")
   requester.send("requester".encode(FORMAT))
   requester.recv(SIZE) # role ack
 
-  print("Sending project metadata, i.e. filename + .blend file length.")
+  print("Sending project metadata, i.e. filename + .blend file length + engine")
   file_len = str(os.path.getsize(args.path))
-  metadata = args.path.split("/")[-1] + "\n" + str(file_len)
+  metadata = args.path.split("/")[-1] + "\n" + str(file_len) + "\n" + ENGINE
   print("-------\n" + metadata + "\n-------")
   requester.send(metadata.encode(FORMAT))
-  requester.recv(SIZE) # ack
+  res = requester.recv(SIZE).decode(FORMAT) # ack
+  if (res == "CANCEL"):
+    print("Job was rejected due to bad metadata")
+    requester.close()
+    return
 
   print("Sending .blend file.")
   file = open(args.path, "rb")
