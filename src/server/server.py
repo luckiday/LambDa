@@ -11,7 +11,19 @@ import shutil
 
 # Multithreaded Python server : TCP Server Socket Thread Pool
 workers = []
-jobs_map = {} # map project names to [RequesterThread, num frames to render, rendering engine]
+jobs_map = {} # map project name to project info dictionary
+"""
+example jobs_map:
+{
+    "proj_name1": {
+        "requester_thread": thread,
+        "num_frames": 10,
+        "num_workers": 4,
+        "rend_engine": "CYCLES
+    },
+    ...
+}
+"""
 worker_lock = threading.Lock()
 jobs_map_lock = threading.Lock()
 
@@ -123,6 +135,11 @@ class MonitorThread(Thread):
                             # not handling the case where num_available_clients > num_frames_to_render
                             # because don't ever think we'll reach that point with this demo
 
+                            # Save how many workers were assigned to this job.
+                            jobs_map_lock.acquire()
+                            jobs_map[new_proj]["num_workers"] = num_available_clients
+                            jobs_map_lock.release()
+
                             for ind, client in enumerate(workers_tmp):
                                 start_frame = frame_start + ind * frames_per_client
                                 end_frame = start_frame + frames_per_client - 1
@@ -163,7 +180,7 @@ class WorkerThread(Thread):
                 + "\n" + self.file_len
                 + "\n" + str(self.start_frame)
                 + "\n" + str(self.end_frame)
-                + "\n" + str(jobs_map[self.proj_name][2]) # Look up rend engine
+                + "\n" + str(jobs_map[self.proj_name]["rend_engine"])
                 ).encode(FORMAT))
             self.conn.recv(SIZE)  # confirm client received metadata
             self.conn.send(self.data)  # send whole file
@@ -197,12 +214,21 @@ class WorkerThread(Thread):
                 self.conn.send("file received".encode(FORMAT))
 
             """ Check whether this project's done rendering. """
-            if (proj_name != "" and
-                len(os.listdir(PROJECTS_DIR + "/" + proj_name + "/outputs"))
-                    == jobs_map[proj_name][1]):
-            # if len(os.listdir(PROJECTS_DIR + "/" + proj_name + "/outputs")) == 2:
-                """ Done with this project so notify requester. """
-                jobs_map[proj_name][0].waiting = False
+            if (proj_name != ""):
+                outputs = os.listdir(PROJECTS_DIR + "/" + proj_name + "/outputs")
+                file_count = len(outputs)
+                if (file_count > 0):
+                    # Check file extension - all outputs should have same one
+                    out_type_is_video = os.path.splitext(outputs[0])[1] == ".mp4"
+                    # If video, there should be one output file per worker.
+                    # If image, there should be one file per frame.
+                    if ((out_type_is_video
+                            and file_count == jobs_map[proj_name]["num_workers"])
+                        or (not out_type_is_video
+                            and file_count == jobs_map[proj_name]["num_frames"])):
+                    # if len(os.listdir(PROJECTS_DIR + "/" + proj_name + "/outputs")) == 2:
+                        """ Done with this project so notify requester. """
+                        jobs_map[proj_name]["requester_thread"].waiting = False
         self.conn.close()
 
 class RequesterThread(Thread):
@@ -274,7 +300,11 @@ class RequesterThread(Thread):
 
         [(frame_start, frame_end, _)] = res
         jobs_map_lock.acquire()
-        jobs_map[proj_name] = [self, frame_end - frame_start + 1, rend_engine]
+        jobs_map[proj_name] = {
+            "requester_thread": self,
+            "num_frames": frame_end - frame_start + 1,
+            "rend_engine": rend_engine
+        }
         jobs_map_lock.release()
 
         """ Wait for workers to finish renders. """
