@@ -57,15 +57,16 @@ class ConnectionThread(Thread):
             self.tcpServer.listen()
             (conn, (ip, port)) = self.tcpServer.accept()
             role = conn.recv(SIZE).decode(FORMAT)
-            if role == "worker":
+            if (role == "worker" or role == "worker-return"):
                 newthread = WorkerThread(conn, ip, port)
                 newthread.start()
                 print(f"[CONN] New worker {ip} on port {port} connected.")
-                print("[CONN] worker_lock get")
-                worker_lock.acquire()
-                workers.append(newthread)
-                worker_lock.release()
-                print("[CONN] worker_lock release")
+                if (role == "worker"):
+                    print("[CONN] worker_lock get")
+                    worker_lock.acquire()
+                    workers.append(newthread)
+                    worker_lock.release()
+                    print("[CONN] worker_lock release")
             else:
                 newthread = RequesterThread(conn, ip, port)
                 newthread.start()

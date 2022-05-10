@@ -80,7 +80,7 @@ def main():
     """ Connecting to the server. """
     client.connect(ADDR)
     print("CONNECTED WITH SERVER")
-    client.send("worker".encode(FORMAT))
+    client.send("worker-return".encode(FORMAT))
     client.recv(SIZE) # role ack
     client.send("done".encode(FORMAT))
     for filename in os.listdir(proj_name + "/outputs"):
