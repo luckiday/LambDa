@@ -160,6 +160,7 @@ the oldest Blender version on any worker is at least as new as the Blender versi
 
 1. Install dependencies
     ```
+    sudo pacman -Sy
     sudo pacman -S git
     sudo pacman -S blender
     ```

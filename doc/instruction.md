@@ -50,6 +50,8 @@ Blender 3.1.2 is available as of April 3, 2022.
 
 To install Blender, run
 
+```sudo pacman -Sy```
+
 ```sudo pacman -S blender```
 
 To verify that it was installed, run
